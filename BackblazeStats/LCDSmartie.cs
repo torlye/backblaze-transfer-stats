@@ -8,8 +8,6 @@ namespace backblazestats
 {
     public class LCDSmartie
     {
-        private static string path = @"C:\ProgramData\Backblaze\bzdata\";
-
         #region "LcdSmartie functions"
 
         /// <summary>
@@ -301,18 +299,7 @@ namespace backblazestats
 
         private static XDocument GetXmlDocument(string filename)
         {
-            FileStream xmlFile = null;
-            try
-            {
-                var filepath = Path.Combine(path, filename);
-                xmlFile = new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite|FileShare.Delete);
-                return XDocument.Load(xmlFile);
-            }
-            finally
-            {
-                if (xmlFile != null)
-                    xmlFile.Close();
-            }
+            return FileCache.GetXmlFile(filename);
         }
     }
 }
