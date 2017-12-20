@@ -8,16 +8,21 @@ namespace backblazestats
 {
     public class LCDSmartie
     {
-        private static string path = @"C:\ProgramData\Backblaze\bzdata\bzlogs\bzreports_lastfilestransmitted";
-        //private static string path = @"C:\temp";
+        private static string path = @"C:\ProgramData\Backblaze\bzdata\";
 
         #region "LcdSmartie functions"
 
+        /// <summary>
+        /// Get the name of the file currently being transferred.
+        /// </summary>
+        /// <param name="param1"></param>
+        /// <param name="param2"></param>
+        /// <returns></returns>
         public string function1(string param1, string param2)
         {
             try
             {
-                return GetLastTransferredFilename();
+                return GetCurrentTransferredFileName();
             }
             catch (Exception e)
             {
@@ -25,11 +30,17 @@ namespace backblazestats
             }
         }
 
+        /// <summary>
+        /// Get the full path of the file currently being transferred.
+        /// </summary>
+        /// <param name="param1"></param>
+        /// <param name="param2"></param>
+        /// <returns></returns>
         public string function2(string param1, string param2)
         {
             try
             {
-                string path = GetLastTransferredFilepath();
+                string path = GetCurrentTransferredFilePath();
                 path = path.Replace('\\', '/');
 
                 int maxLength;
@@ -51,11 +62,19 @@ namespace backblazestats
             }
         }
 
+        /// <summary>
+        /// Get amount of free space on all volumes selected for backup.
+        /// </summary>
+        /// <param name="param1">Unit to convert the value to (KB, MB, GB, TB) or empty to return the value in bytes.</param>
+        /// <param name="param2">Number of decimals to show</param>
+        /// <returns></returns>
         public string function3(string param1, string param2)
         {
             try
             {
-                return GetLastTransferredDate().ToLocalTime().ToString(param1);
+                var bytes = GetStorageInfo("numBytesFreeOnVolume");
+                var convertedBytes = ComputeByteUnit(param1, bytes);
+                return FormatNumberWithFixedDecimals(param2, convertedBytes);
             }
             catch (Exception e)
             {
@@ -63,29 +82,123 @@ namespace backblazestats
             }
         }
 
+        /// <summary>
+        /// Get amount of space used on all volumes selected for backup
+        /// </summary>
+        /// <param name="param1">Unit to convert the value to (KB, MB, GB, TB) or empty to return the value in bytes.</param>
+        /// <param name="param2">Number of decimals to show</param>
+        /// <returns></returns>
         public string function4(string param1, string param2)
         {
             try
             {
-                var stringVal = GetAttributeValue("kBitsPerSec_of_lastActualTransmission");
-                var val = decimal.Parse(stringVal);
+                var bytes = GetStorageInfo("numBytesUsedOnVolume");
+                var convertedBytes = ComputeByteUnit(param1, bytes);
+                return FormatNumberWithFixedDecimals(param2, convertedBytes);
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get total amount of storage space on all volumes selected for backup
+        /// </summary>
+        /// <param name="param1">Unit to convert the value to (KB, MB, GB, TB) or empty to return the value in bytes.</param>
+        /// <param name="param2">Number of decimals to show</param>
+        /// <returns></returns>
+        public string function5(string param1, string param2)
+        {
+            try
+            {
+                var bytes = GetStorageInfo("numBytesTotalOnVolume");
+                var convertedBytes = ComputeByteUnit(param1, bytes);
+                return FormatNumberWithFixedDecimals(param2, convertedBytes);
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get size of file currently being transferred
+        /// </summary>
+        /// <param name="param1">Unit to convert the value to (KB, MB, GB, TB) or empty to return the value in bytes.</param>
+        /// <param name="param2">Number of decimals to show</param>
+        /// <returns></returns>
+        public string function6(string param1, string param2)
+        {
+            try
+            {
+                var bytes = GetCurrentTransferredFileSize();
+                var convertedBytes = ComputeByteUnit(param1, bytes);
+                return FormatNumberWithFixedDecimals(param2, convertedBytes);
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get amount of data backed up so far
+        /// </summary>
+        /// <param name="param1">Unit to convert the value to (KB, MB, GB, TB) or empty to return the value in bytes.</param>
+        /// <param name="param2">Number of decimals to show</param>
+        /// <returns></returns>
+        public string function7(string param1, string param2)
+        {
+            try
+            {
+                var bytes = GetNumberOfBytesBackedUp();
+                var convertedBytes = ComputeByteUnit(param1, bytes);
+                return FormatNumberWithFixedDecimals(param2, convertedBytes);
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get total amount of data selected for backup
+        /// </summary>
+        /// <param name="param1">Unit to convert the value to (KB, MB, GB, TB) or empty to return the value in bytes.</param>
+        /// <param name="param2">Number of decimals to show</param>
+        /// <returns></returns>
+        public string function8(string param1, string param2)
+        {
+            try
+            {
+                var bytes = GetNumberOfBytesScheduled();
+                var convertedBytes = ComputeByteUnit(param1, bytes);
+                return FormatNumberWithFixedDecimals(param2, convertedBytes);
+            }
+            catch (Exception e)
+            {
+                return e.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get upload speed of last backup
+        /// </summary>
+        /// <param name="param1">"mbit" to show the upload speed in megabits. Otherwise kilobits.</param>
+        /// <param name="param2"></param>
+        /// <returns></returns>
+        public string function9(string param1, string param2)
+        {
+            try
+            {
+                var stringVal = GetAttributeValue(@"bzlogs\bzreports_lastfilestransmitted\bzstat_lastfile_transmitted.xml", "lastfile_transmitted", "kBitsPerSec_of_lastActualTransmission");
+                var val = double.Parse(stringVal);
 
                 if (param1 == "mbit")
                     val = val / 1000;
 
-                int decimals;
-                if (int.TryParse(param2, out decimals))
-                {
-                    val = Math.Round(val, decimals);
-                    if (decimals > 0)
-                    {
-                        var formatString = "0" + CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
-                        for (int i = 0; i < decimals; i++)
-                            formatString += "0";
-                        return val.ToString(formatString);
-                    }
-                }
-                return val.ToString();
+                return FormatNumberWithFixedDecimals(param2, val);
             }
             catch (Exception e)
             {
@@ -95,35 +208,111 @@ namespace backblazestats
 
         #endregion
 
-        private static string GetLastTransferredFilename()
+        private static double ComputeByteUnit(string byteUnitParam, long byteValue)
         {
-            return Path.GetFileName(GetAttributeValue("filename"));
+            var value = (double)byteValue;
+            if (byteUnitParam.Equals("KB", StringComparison.InvariantCultureIgnoreCase))
+                value = value / 1024;
+            else if (byteUnitParam.Equals("MB", StringComparison.InvariantCultureIgnoreCase))
+                value = value / Math.Pow(1024, 2);
+            else if (byteUnitParam.Equals("GB", StringComparison.InvariantCultureIgnoreCase))
+                value = value / Math.Pow(1024, 3);
+            else if (byteUnitParam.Equals("TB", StringComparison.InvariantCultureIgnoreCase))
+                value = value / Math.Pow(1024, 4);
+            return value;
         }
 
-        private static string GetLastTransferredFilepath()
+        private static string FormatNumberWithFixedDecimals(string decimalParam, double value)
         {
-            return GetAttributeValue("filename");
+            decimal decVal = new decimal(value);
+            int decimals;
+            if (int.TryParse(decimalParam, out decimals))
+            {
+                decVal = Math.Round(decVal, decimals);
+                if (decimals > 0)
+                {
+                    var formatString = "0" + CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+                    for (int i = 0; i < decimals; i++)
+                        formatString += "0";
+                    return decVal.ToString(formatString);
+                }
+            }
+            return decVal.ToString();
         }
 
-        private static DateTime GetLastTransferredDate()
+        private static string GetCurrentTransferredFileName()
         {
-            string millisString = GetAttributeValue("gmt_millis");
-            var millis = long.Parse(millisString);
-
-            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            return epoch.AddMilliseconds(millis);
+            return GetAttributeValue("overviewstatus.xml", "bztransmit", "current_file");
         }
 
-        private static string GetAttributeValue(string attribute)
+        private static string GetCurrentTransferredFilePath()
         {
-            var el = GetLastTransmittedFileElement().Attribute(attribute);
-            return el.Value;
+            return GetAttributeValue("overviewstatus.xml", "bztransmit", "current_file_fullpath");
         }
 
-        private static XElement GetLastTransmittedFileElement()
+        private static long GetNumberOfBytesBackedUp()
         {
-            var doc = XDocument.Load(Path.Combine(path, "bzstat_lastfile_transmitted.xml"));
-            return doc.Root.Descendants("lastfile_transmitted").FirstOrDefault();
+            string byteString = GetAttributeValue(@"bzreports\bzstat_last_synchostinfo_serv.xml", "info", "report_bytes");
+            return long.Parse(byteString);
+        }
+
+        private static long GetNumberOfBytesScheduled()
+        {
+            string byteString = GetAttributeValue(@"bzreports\bzstat_totalbackup.xml", "totals", "totnumbytesforbackup");
+            return long.Parse(byteString);
+        }
+
+        private static string GetAttributeValue(string filename, string elementname, string attributename)
+        {
+            var doc = GetXmlDocument(filename);
+            var el = doc.Root.Descendants(elementname).LastOrDefault();
+            var val = el.Attribute(attributename).Value;
+            return val;
+        }
+
+        private static long GetCurrentTransferredFileSize()
+        {
+            var currentFilePath = GetCurrentTransferredFilePath();
+
+            if (string.IsNullOrEmpty(currentFilePath))
+                return 0;
+
+            var file = new FileInfo(currentFilePath);
+            if (file.Exists)
+                return file.Length;
+
+            return 0;
+        }
+
+        private static long GetStorageInfo(string storageparameter)
+        {
+            long total = 0;
+            var doc = GetXmlDocument("bzvolumes.xml");
+            var elements = doc.Root.Descendants("bzvolume");
+            foreach (var el in elements)
+            {
+                var attr = el.Attribute(storageparameter)?.Value;
+                long val;
+                if (long.TryParse(attr, out val))
+                    total += val;
+            }
+            return total;
+        }
+
+        private static XDocument GetXmlDocument(string filename)
+        {
+            FileStream xmlFile = null;
+            try
+            {
+                var filepath = Path.Combine(path, filename);
+                xmlFile = new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite|FileShare.Delete);
+                return XDocument.Load(xmlFile);
+            }
+            finally
+            {
+                if (xmlFile != null)
+                    xmlFile.Close();
+            }
         }
     }
 }
